@@ -4,12 +4,12 @@ app = Flask(__name__)
 
 
 @app.route('/')
-def hello_world(): 
+def hello_world():
     return 'Hello World!'
 
 
 @app.route('/<location_id>')
-def hello_world(location_id):
+def hello_location(location_id):
     return 'Hello World! location: '+location_id
 
 
