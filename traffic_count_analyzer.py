@@ -32,7 +32,8 @@ if __name__ == '__main__':
     points_dict = analyzer.transform_feature_points_to_points_dict(feature_points)
     points_only = list(points_dict.keys())  # TODO !! check order - to insure correct index usage!
 
-    row0_point = (-8207479.18948, 4963098.1353)
+    row0_point = (-8207479.18948, 4963098.1353)  # 40.6653, -73.72904
+
 
     # points_only.remove(row0_point)
 

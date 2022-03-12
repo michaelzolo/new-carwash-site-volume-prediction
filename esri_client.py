@@ -1,3 +1,4 @@
+import json
 import math
 import time
 
@@ -32,7 +33,7 @@ class EsriClient:
     def get_traffic_counts_by_bounding_box(self, min_lat, max_lat, min_lon, max_lon):
         url = f"https://demographics5.arcgis.com/arcgis/rest/services/USA_Traffic_Counts/MapServer/0/query?" \
               f"f=json" \
-              f"&outFields=Cnt1year%2CCnttype1%2CStreet%2CTraffic1%2CTraffic2%2CTraffic3%2CTraffic4%2CTraffic5%2COBJECTID" \
+              f"&outFields=CrossSt%2CCrossDir%2CCrossDist%2CCnt1year%2CCnttype1%2CStreet%2CTraffic1%2CTraffic2%2CTraffic3%2CTraffic4%2CTraffic5%2COBJECTID" \
               f"&outSR=102100" \
               f"&returnM=true" \
               f"&returnZ=true" \
@@ -48,10 +49,18 @@ if __name__ == '__main__':
 
     lat_0 = 40.6653
     lon_0 = -73.72904
+    row82_point = (28.402451, -81.243217)
 
-    bounding_box = esri_client.get_bounding_box(lat_0, lon_0, 5000)
-    print(bounding_box)
+    # bounding_box = esri_client.get_bounding_box(*row82_point, 5000)
+    # print(bounding_box)
 
+    bounding_box = (28.357535235794025, 28.447366764205974, -81.29427921343128, -81.19215478656872)
     # bounding_box = (38.9369, 39.0077, -110.3378, -110.1774)
-    # json_response = esri_client.get_traffic_counts_by_bounding_box(*bounding_box)
-    # print(json_response)
+    json_response = esri_client.get_traffic_counts_by_bounding_box(*bounding_box)
+    print(json_response)
+
+    with open('row82_5000m_response.json', 'w') as f:
+        json.dump(json_response, f)
+
+    print("done")
+

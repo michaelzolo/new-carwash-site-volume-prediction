@@ -4,7 +4,7 @@ import time
 from flask import Flask, request
 # TODO REMOVE from flask_ngrok import run_with_ngrok
 
-app = Flask(__name__)
+app = Flask(__name__)654.987&lot_s
 # TODO REMOVE run_with_ngrok(app)
 
 
@@ -13,7 +13,7 @@ def hello_world():
     return 'Hello World!'
 
 
-@app.route('/api/', methods=['GET'])  # /api/?zipcode=12345&la=123.456&lo=654.987&lot_size=1212
+@app.route('/api/', methods=['GET'])  # /api/?zipcode=12345&la=123.456&lo=ize=1212
 def hello_params():
     zipcode = str(request.args.getlist('zipcode'))
     la = str(request.args.getlist('la'))
