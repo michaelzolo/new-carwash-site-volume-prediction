@@ -16,19 +16,6 @@ from pyproj import Transformer
 from esri_client import EsriClient
 
 
-def save_df_to_csv(df: pd.DataFrame, output_path: str):
-    output_path_obj = Path(output_path)
-    output_path_obj.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path_obj)
-
-
-def save_json_to_file(data, output_path):
-    output_path_obj = Path(output_path)
-    output_path_obj.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path_obj, 'w') as f:
-        json.dump(data, f)
-
-
 class EsriTrafficCountAnalyzer:
     def __init__(self, output_cache_dir_path, limit_num_closest_same_street: int = 3, limit_num_closest_unfiltered: int = 5,
                  box_size_m: int = 3000):
@@ -36,6 +23,17 @@ class EsriTrafficCountAnalyzer:
         self.__limit_num_closest_unfiltered = limit_num_closest_unfiltered
         self.__box_size_m = box_size_m
         self.__output_cache_dir_path = output_cache_dir_path
+
+    def save_df_to_csv(df: pd.DataFrame, output_path: str):
+        output_path_obj = Path(output_path)
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(output_path_obj)
+
+    def save_json_to_file(data, output_path):
+        output_path_obj = Path(output_path)
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path_obj, 'w') as f:
+            json.dump(data, f)
 
     def compute_average_count_from_closest_feature_points(self, feature_points_response_file_path: str | Path,
                                                           input_xy: tuple,
@@ -145,7 +143,7 @@ class EsriTrafficCountAnalyzer:
 
         # Save as a DataFrame to CSV file. (In the future this CSV can be used for debugging and caching).
         df_closest = EsriTrafficCountAnalyzer.dict_points_to_df(dict_closest)
-        save_df_to_csv(df_closest, output_path)
+        EsriTrafficCountAnalyzer.save_df_to_csv(df_closest, output_path)
 
         return df_closest
 
@@ -213,7 +211,7 @@ class EsriTrafficCountAnalyzer:
                 except:
                     print("Failed request. Trying again...")
                     time.sleep(1)
-            save_json_to_file(json_response, response_cache_json_path)
+            EsriTrafficCountAnalyzer.save_json_to_file(json_response, response_cache_json_path)
 
         mean_count, most_frequent_count_year, num_closest_used, total_closest_found = self.compute_average_count_from_closest_feature_points(
             response_cache_json_path,
@@ -240,7 +238,7 @@ class EsriTrafficCountAnalyzer:
                 print(f"*** Sending (new) unfiltered request for point {input_lat_lot}")
                 json_response = esri_client.get_traffic_counts_by_bounding_box(*bounding_box)
 
-                save_json_to_file(json_response, response_cache_json_path)
+                EsriTrafficCountAnalyzer.save_json_to_file(json_response, response_cache_json_path)
 
                 mean_count, most_frequent_count_year, num_closest_used, total_closest_found = self.compute_average_count_from_closest_feature_points(
                     response_cache_json_path,
