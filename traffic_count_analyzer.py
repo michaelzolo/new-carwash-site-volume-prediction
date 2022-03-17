@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import time
 from datetime import datetime
@@ -20,26 +22,25 @@ def save_df_to_csv(df: pd.DataFrame, output_path: str):
     df.to_csv(output_path_obj)
 
 
+def save_json_to_file(data, output_path):
+    output_path_obj = Path(output_path)
+    output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path_obj, 'w') as f:
+        json.dump(data, f)
+
+
 class EsriTrafficCountAnalyzer:
-    def __init__(self, input_csv_path, limit_num_closest_same_street, limit_num_closest_unfiltered):
-        self.__input_csv_path = input_csv_path
+    def __init__(self, limit_num_closest_same_street, limit_num_closest_unfiltered, box_size_m, output_cache_dir_path):
         self.__limit_num_closest_same_street = limit_num_closest_same_street
         self.__limit_num_closest_unfiltered = limit_num_closest_unfiltered
-        self.__output_dir_path = r"output"
+        self.__box_size_m = box_size_m
+        self.__output_cache_dir_path = output_cache_dir_path
 
-    def tag_input_csv(self):
-        input_df = self.get_input_csv_df()
-        input_df['address_tags'] = input_df['address'].apply(lambda a: usaddress.tag(str(a)))
-        input_df.to_csv(os.path.splitext(self.__input_csv_path)[0] + '_tagged.csv')
-
-    def get_input_csv_df(self):
-        return pd.read_csv(self.__input_csv_path)
-
-    def compute_mean_count_from_closest_points(self, f_p_file_path, input_xy, input_address,
-                                               limit_num_closest_to_use: int = None):
-        if limit_num_closest_to_use is None:
-            limit_num_closest_to_use = self.__limit_num_closest_same_street
-        feature_points = EsriTrafficCountAnalyzer.get_feature_points_from_file(f_p_file_path)
+    def compute_average_count_from_closest_feature_points(self, feature_points_response_file_path: str | Path,
+                                                          input_xy: tuple,
+                                                          input_address: str,
+                                                          limit_num_closest_to_use: int):
+        feature_points = EsriTrafficCountAnalyzer.get_feature_points_from_file(feature_points_response_file_path)
 
         points_dict = EsriTrafficCountAnalyzer.transform_feature_points_to_points_dict(feature_points)
 
@@ -48,32 +49,34 @@ class EsriTrafficCountAnalyzer:
         input_street_tags = dict(filter(lambda item: 'street' in item[0].lower(), input_address_tags.items()))
         input_street = input_street_tags['StreetName']
 
-        filter_street_substring = input_street_tags['StreetName']
-
         # Same street. Up to 5 years old. (The best alternative)
-        output_path = self.__output_dir_path + "/x{} y{} {}/same-5yo.csv".format(*input_xy, input_street)
+        output_path = self.__output_cache_dir_path + "/processed_input_points/x{}_y{}_{}/same-5yo.csv".format(*input_xy,
+                                                                                                              input_street)
         df_closest = EsriTrafficCountAnalyzer.get_closest_points_df(input_xy, points_dict,
-                                                                    filter_street_substring=filter_street_substring,
+                                                                    filter_street_substring=input_street,
                                                                     filter_years_ago=5,
                                                                     output_path=output_path)
         if df_closest.empty:
             # Same street. Any year.
-            output_path = self.__output_dir_path + "/x{} y{} {}/same-any.csv".format(*input_xy, input_street)
+            output_path = self.__output_cache_dir_path + "/processed_input_points/x{}_y{}_{}/same-any.csv".format(
+                *input_xy, input_street)
             df_closest = EsriTrafficCountAnalyzer.get_closest_points_df(input_xy, points_dict,
-                                                                        filter_street_substring=filter_street_substring,
+                                                                        filter_street_substring=input_street,
                                                                         output_path=output_path)
         if df_closest.empty:
             # Cross street. Up to 5 years old.
-            output_path = self.__output_dir_path + "/x{} y{} {}/cross-5yo.csv".format(*input_xy, input_street)
+            output_path = self.__output_cache_dir_path + "/processed_input_points/x{}_y{}_{}/cross-5yo.csv".format(
+                *input_xy, input_street)
             df_closest = EsriTrafficCountAnalyzer.get_closest_points_df(input_xy, points_dict,
-                                                                        filter_cross_st_substring=filter_street_substring,
+                                                                        filter_cross_st_substring=input_street,
                                                                         filter_years_ago=5,
                                                                         output_path=output_path)
         if df_closest.empty:
             # Cross street. Any year.
-            output_path = self.__output_dir_path + "/x{} y{} {}/cross-any.csv".format(*input_xy, input_street)
+            output_path = self.__output_cache_dir_path + "/processed_input_points/x{}_y{}_{}/cross-any.csv".format(
+                *input_xy, input_street)
             df_closest = EsriTrafficCountAnalyzer.get_closest_points_df(input_xy, points_dict,
-                                                                        filter_cross_st_substring=filter_street_substring,
+                                                                        filter_cross_st_substring=input_street,
                                                                         output_path=output_path)
         if df_closest.empty:
             print(
@@ -84,8 +87,6 @@ class EsriTrafficCountAnalyzer:
             df_closest = df_closest.iloc[:limit_num_closest_to_use]
             mean_count = df_closest['Traffic1'].mean()
             most_frequent_count_year = df_closest['Cnt1year'].mode().max()
-            # closest_to_mean = \  # TODO REMOVE. Since this is inaccurate. We need the dominant, not the closest in value.
-            #     df_closest.iloc[(df_closest['Traffic1'] - mean_count).abs().argsort()[:1]]['Cnt1year'].values[0]
             return mean_count, most_frequent_count_year, df_closest.shape[0], total_closest_found
 
     @staticmethod
@@ -94,8 +95,7 @@ class EsriTrafficCountAnalyzer:
                               filter_street_substring: Optional[str] = None,
                               filter_cross_st_substring: Optional[str] = None,
                               filter_years_ago: Optional[int] = None):
-        """ Return the closest feature points :dict_f_p """
-        # TODO instead of this - use smarter filtering. For now all street filters are disabled.
+        """ Return the closest points to p_xy among the points from dict_f_p. """
         filter_street_name_tag = None
         filter_street_substring = None
         filter_cross_st_substring = None
@@ -109,8 +109,6 @@ class EsriTrafficCountAnalyzer:
             limit = len(list_xy)
 
         while len(list_xy) > 0:
-            # TODO !! check order -> to insure correct index usage -> and then optimize access with index access.
-
             closest_xy = EsriTrafficCountAnalyzer.closest_point(p_xy, list_xy)
             closest_p = copy.deepcopy(dict_f_p[closest_xy])
 
@@ -125,7 +123,7 @@ class EsriTrafficCountAnalyzer:
                 closest_p_street_name_tag = closest_p['Street']
                 print(f"(Using raw street name \"{closest_p_street_name_tag}\" for point {closest_xy})")
 
-            # TODO filter only tags containing 'street' + make it more generic, make 'filter_tags' a list
+            # Apply filters and get the actual point.
             if (
                     filter_street_name_tag is None or closest_p_street_name_tag.lower() == filter_street_name_tag.lower()) and (
                     filter_street_substring is None or filter_street_substring.lower() in closest_p[
@@ -144,8 +142,8 @@ class EsriTrafficCountAnalyzer:
             if num_xy_processed >= limit:
                 break
 
+        # Save as a DataFrame to CSV file. (In the future this CSV can be used for debugging and caching).
         df_closest = EsriTrafficCountAnalyzer.dict_points_to_df(dict_closest)
-
         save_df_to_csv(df_closest, output_path)
 
         return df_closest
@@ -184,13 +182,6 @@ class EsriTrafficCountAnalyzer:
             points_dict[(f_p['geometry']['x'], f_p['geometry']['y'])] = f_p['attributes']
         return points_dict
 
-    # Testing "analyzer.closest_point_index()" :: seems to work fine.
-    # part_of_points = points_only[0:3]
-    # for p in part_of_points:
-    #     points_without_p = [x for x in part_of_points if x != p]
-    #     closest_i = analyzer.closest_point_index(p, points_without_p)
-    #     print(f"the closest point to {p} is {points_without_p[closest_i]}")
-
     @staticmethod
     def convert_xy_to_lat_lon(x, y):
         transformer = Transformer.from_crs('epsg:3857', 'epsg:4326')
@@ -201,79 +192,91 @@ class EsriTrafficCountAnalyzer:
         transformer = Transformer.from_crs('epsg:4326', 'epsg:3857')
         return transformer.transform(lon, lat)
 
-    def run(self, re_run_on_zero_same_street_closest: bool = False):
-        input_csv_df = self.get_input_csv_df()
-
+    def analyze(self, input_lat_lot, response_cache_json_path, input_address: str = None,
+                resend_request_if_no_unfiltered_data: bool = False):
         esri_client = EsriClient()
 
+        bounding_box = esri_client.get_bounding_box(*input_lat_lot, self.__box_size_m)
+        print(f"bounding_box: {bounding_box}")
+
+        if not Path(response_cache_json_path).is_file():
+            json_response = None
+            while json_response is None:
+                try:
+                    print("Sending request...")
+                    if input_address is not None:
+                        street_filter = usaddress.tag(input_address)[0]['StreetName']
+                    else:
+                        street_filter = None
+                    json_response = esri_client.get_traffic_counts_by_bounding_box(*bounding_box, street_filter)
+                except:
+                    print("Failed request. Trying again...")
+                    time.sleep(1)
+            save_json_to_file(json_response, response_cache_json_path)
+
+        mean_count, most_frequent_count_year, num_closest_used, total_closest_found = self.compute_average_count_from_closest_feature_points(
+            response_cache_json_path,
+            self.convert_lat_lon_to_xy(*input_lat_lot),
+            input_address,
+            limit_num_closest_to_use=self.__limit_num_closest_same_street
+        )
+
+        if mean_count is None:
+            # Trying to find data without the street filter.
+            response_cache_json_path = Path(os.path.splitext(response_cache_json_path)[0] + '_unfiltered.json')
+
+            if response_cache_json_path.exists():
+                # Look at previously saved responses of unfiltered data.
+                print(f"Found unfiltered response data for point {input_lat_lot}")
+                mean_count, most_frequent_count_year, num_closest_used, total_closest_found = self.compute_average_count_from_closest_feature_points(
+                    response_cache_json_path,
+                    self.convert_lat_lon_to_xy(*input_lat_lot),
+                    input_address,
+                    limit_num_closest_to_use=self.__limit_num_closest_unfiltered
+                )
+            elif mean_count is None and resend_request_if_no_unfiltered_data:
+                # Send a new request.
+                print(f"*** Sending unfiltered request for point {input_lat_lot}")
+                json_response = esri_client.get_traffic_counts_by_bounding_box(*bounding_box)
+
+                save_json_to_file(json_response, response_cache_json_path)
+
+                mean_count, most_frequent_count_year, num_closest_used, total_closest_found = self.compute_average_count_from_closest_feature_points(
+                    response_cache_json_path,
+                    self.convert_lat_lon_to_xy(*input_lat_lot),  # 28.402451, -81.243217
+                    input_address,
+                    limit_num_closest_to_use=self.__limit_num_closest_unfiltered
+                )
+        return mean_count, most_frequent_count_year, num_closest_used, total_closest_found
+
+    def analyze_by_api(self, lat, lon, input_address: str = None, resend_request_if_no_unfiltered_data: bool = False):
+        input_lat_lot = (lat, lon)
+        response_cache_json_path = self.__output_cache_dir_path + f"/responses/lat{lat}_lon{lon}_{self.__box_size_m}m_response.json"
+
+        analysis_result = self.analyze(input_lat_lot, response_cache_json_path, input_address,
+                                       resend_request_if_no_unfiltered_data)
+        (mean_count, most_frequent_count_year, num_closest_used, total_closest_found) = analysis_result
+        print(analysis_result)
+        return mean_count, most_frequent_count_year, num_closest_used, total_closest_found
+
+    def analyze_by_csv(self, input_csv_path, resend_request_if_no_unfiltered_data: bool = False):
+        input_csv_df = pd.read_csv(input_csv_path)
+
         traffic_count_list, traffic_year_list, traffic_num_closest_used, traffic_total_closest = [], [], [], []
-        # limit_last_input_row = 0  # TODO re-process lines list in config
         for row_num, row in input_csv_df.iterrows():
-            print(f"----------------- row_num: {row_num} ----------------------")  # TODO logging
-            # print(f"street only: {usaddress.tag(row['address'])[0]['StreetName']}")
+            print(f"----------------- row_num: {row_num} ----------------------")
+            input_lat_lot = (row['Latitude'], row['Longitude'])
+            input_address = row['address']
+            response_cache_json_path = self.__output_cache_dir_path + f"/responses/row{row_num}_{self.__box_size_m}m_response.json"
 
-            box_size = 3000
-
-            response_json_path = self.__output_dir_path + f"/responses/row{row_num}_{box_size}m_response.json"
-
-            bounding_box = esri_client.get_bounding_box(row['Latitude'], row['Longitude'], box_size)
-            print(f"bounding_box: {bounding_box}")
-            if not Path(response_json_path).is_file():
-                json_response = None
-                while json_response is None:
-                    try:
-                        json_response = esri_client.get_traffic_counts_by_bounding_box(*bounding_box,
-                                                                                       usaddress.tag(row['address'])[0][
-                                                                                           'StreetName'])
-                    except:
-                        print("Failed request. trying again ...")
-                        time.sleep(1)
-                with open(response_json_path, 'w') as f:
-                    json.dump(json_response, f)
-
-            mean_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.compute_mean_count_from_closest_points(
-                response_json_path,
-                analyzer.convert_lat_lon_to_xy(row['Latitude'], row['Longitude']),  # 28.402451, -81.243217
-                row['address']
-            )
-
-            if mean_count is None:
-                # Trying to find data without the street filter.
-                response_json_path = Path(os.path.splitext(response_json_path)[0] + '_unfiltered.json')
-
-                # First - look at previously saved responses. Otherwise - send a new request.
-                if response_json_path.exists():
-                    print(f"* Found unfiltered response data for point {(row['Latitude'], row['Longitude'])}")
-                    mean_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.compute_mean_count_from_closest_points(
-                        response_json_path,
-                        analyzer.convert_lat_lon_to_xy(row['Latitude'], row['Longitude']),  # 28.402451, -81.243217
-                        row['address'],
-                        limit_num_closest_to_use=5
-                        # TODO make sure to use smart averaging, instead of the fixed parameter
-                    )
-                elif mean_count is None and re_run_on_zero_same_street_closest:
-                    print(f"* Sending a new request for point {(row['Latitude'], row['Longitude'])}")
-                    json_response = esri_client.get_traffic_counts_by_bounding_box(*bounding_box)
-
-                    with open(response_json_path, 'w') as f:
-                        json.dump(json_response, f)
-
-                    mean_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.compute_mean_count_from_closest_points(
-                        response_json_path,
-                        analyzer.convert_lat_lon_to_xy(row['Latitude'], row['Longitude']),  # 28.402451, -81.243217
-                        row['address'],
-                        limit_num_closest_to_use=5
-                        # TODO make sure to use smart averaging, instead of the fixed parameter
-                    )
+            analysis_result = self.analyze(input_lat_lot, response_cache_json_path, input_address,
+                                           resend_request_if_no_unfiltered_data)
+            (mean_count, most_frequent_count_year, num_closest_used, total_closest_found) = analysis_result
 
             traffic_count_list.append(mean_count)
             traffic_year_list.append(most_frequent_count_year)
             traffic_num_closest_used.append(num_closest_used)
             traffic_total_closest.append(total_closest_found)
-
-            # if limit_last_input_row <= 0:
-            #     break
-            # limit_last_input_row -= 1
 
         num_rows = input_csv_df.shape[0]
         traffic_count_list += [None] * (num_rows - len(traffic_count_list))
@@ -284,25 +287,14 @@ class EsriTrafficCountAnalyzer:
         input_csv_df['traffic_year'] = traffic_year_list
         input_csv_df['traffic_num_closest_used'] = traffic_num_closest_used
         input_csv_df['traffic_total_closest'] = traffic_total_closest
-        print(input_csv_df)
+
         input_csv_df.to_csv(os.path.splitext(input_csv_path)[0] + '_with_counts.csv')
-
-    def sandbox_run(self):
-        # print(usaddress.tag("135 Ripley St. Alpena, MI  49707"))
-        # print(EsriTrafficCountAnalyzer.convert_xy_to_lat_lon(-9289851.9568,5629166.3554000039))
-
-        input_csv_path = 'input2_with_counts.csv'
-        analyzer = EsriTrafficCountAnalyzer(input_csv_path, limit_num_closest_same_street=3,
-                                            limit_num_closest_unfiltered=5)
-        input_csv_df = analyzer.get_input_csv_df()
-        mode = input_csv_df['traffic_year'].mode().max()
-        print(mode)
 
 
 if __name__ == '__main__':
-    # analyzer = EsriTrafficCountAnalyzer(input_csv_path='input2.csv',
-    #                                     limit_num_closest_same_street=3,
-    #                                     limit_num_closest_unfiltered=5)
-
-    analyzer.run()
-    # sandbox_run()
+    analyzer = EsriTrafficCountAnalyzer(limit_num_closest_same_street=3,
+                                        limit_num_closest_unfiltered=5,
+                                        box_size_m=3000,
+                                        output_cache_dir_path=r"output/csv")
+    # analyzer.analyze_by_csv("input2.csv", resend_request_if_no_unfiltered_data=True)
+    analyzer.analyze_by_api(lat, lon, input_address=None, resend_request_if_no_unfiltered_data=True)
