@@ -30,7 +30,8 @@ def save_json_to_file(data, output_path):
 
 
 class EsriTrafficCountAnalyzer:
-    def __init__(self, limit_num_closest_same_street, limit_num_closest_unfiltered, box_size_m, output_cache_dir_path):
+    def __init__(self, limit_num_closest_same_street: int = 3, limit_num_closest_unfiltered: int = 5,
+                 box_size_m: int = 3000, output_cache_dir_path):
         self.__limit_num_closest_same_street = limit_num_closest_same_street
         self.__limit_num_closest_unfiltered = limit_num_closest_unfiltered
         self.__box_size_m = box_size_m
@@ -193,7 +194,7 @@ class EsriTrafficCountAnalyzer:
         return transformer.transform(lon, lat)
 
     def analyze(self, input_lat_lot, response_cache_json_path, input_address: str = None,
-                resend_request_if_no_unfiltered_data: bool = False):
+                resend_request_if_no_unfiltered_data: bool = True):
         esri_client = EsriClient()
 
         bounding_box = esri_client.get_bounding_box(*input_lat_lot, self.__box_size_m)
@@ -236,14 +237,14 @@ class EsriTrafficCountAnalyzer:
                 )
             elif mean_count is None and resend_request_if_no_unfiltered_data:
                 # Send a new request.
-                print(f"*** Sending unfiltered request for point {input_lat_lot}")
+                print(f"*** Sending (new) unfiltered request for point {input_lat_lot}")
                 json_response = esri_client.get_traffic_counts_by_bounding_box(*bounding_box)
 
                 save_json_to_file(json_response, response_cache_json_path)
 
                 mean_count, most_frequent_count_year, num_closest_used, total_closest_found = self.compute_average_count_from_closest_feature_points(
                     response_cache_json_path,
-                    self.convert_lat_lon_to_xy(*input_lat_lot),  # 28.402451, -81.243217
+                    self.convert_lat_lon_to_xy(*input_lat_lot),
                     input_address,
                     limit_num_closest_to_use=self.__limit_num_closest_unfiltered
                 )
@@ -292,9 +293,8 @@ class EsriTrafficCountAnalyzer:
 
 
 if __name__ == '__main__':
-    analyzer = EsriTrafficCountAnalyzer(limit_num_closest_same_street=3,
-                                        limit_num_closest_unfiltered=5,
-                                        box_size_m=3000,
-                                        output_cache_dir_path=r"output/csv")
-    # analyzer.analyze_by_csv("input2.csv", resend_request_if_no_unfiltered_data=True)
-    analyzer.analyze_by_api(lat, lon, input_address=None, resend_request_if_no_unfiltered_data=True)
+    analyzer = EsriTrafficCountAnalyzer(output_cache_dir_path=r"output/api")  # output_cache_dir_path without '/' on the edges
+    lat = 40.6653
+    lon = - 73.72904
+
+    traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
