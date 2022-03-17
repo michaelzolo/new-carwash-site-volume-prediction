@@ -30,8 +30,8 @@ def save_json_to_file(data, output_path):
 
 
 class EsriTrafficCountAnalyzer:
-    def __init__(self, limit_num_closest_same_street: int = 3, limit_num_closest_unfiltered: int = 5,
-                 box_size_m: int = 3000, output_cache_dir_path):
+    def __init__(self, output_cache_dir_path, limit_num_closest_same_street: int = 3, limit_num_closest_unfiltered: int = 5,
+                 box_size_m: int = 3000):
         self.__limit_num_closest_same_street = limit_num_closest_same_street
         self.__limit_num_closest_unfiltered = limit_num_closest_unfiltered
         self.__box_size_m = box_size_m
