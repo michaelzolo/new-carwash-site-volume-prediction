@@ -4,7 +4,7 @@ import time
 from flask import Flask, request
 # TODO REMOVE from flask_ngrok import run_with_ngrok
 
-app = Flask(__name__)654.987&lot_s
+app = Flask(__name__)
 # TODO REMOVE run_with_ngrok(app)
 
 
