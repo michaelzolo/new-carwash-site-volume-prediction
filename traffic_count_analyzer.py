@@ -340,7 +340,7 @@ class EsriTrafficCountAnalyzer:
         return mean_count, most_frequent_count_year, num_closest_used, total_closest_found
 
     def analyze_by_api(self, lat, lon, input_address: str = None, resend_request_if_no_unfiltered_data: bool = False):
-        input_lat_lot = (lat, lon)
+        input_lat_lot = (float(lat), float(lon))
         response_cache_json_path = self.__output_cache_dir_path + f"/responses/lat{lat}_lon{lon}_{self.__box_size_m}m_response.json"
 
         analysis_result = self.analyze(input_lat_lot, response_cache_json_path, input_address,
@@ -395,6 +395,6 @@ if __name__ == '__main__':
     lat = 40.6653
     lon = -73.72904
 
-    analyzer.analyze_by_csv("input2.csv", range(1, 10))
-    # traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
+    # analyzer.analyze_by_csv("input2.csv", range(1, 10))
+    traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
     # print(traffic_count, most_frequent_count_year, num_closest_used, total_closest_found)
