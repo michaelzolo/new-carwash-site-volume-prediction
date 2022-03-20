@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import time
 from datetime import datetime
@@ -164,7 +165,7 @@ class EsriTrafficCountAnalyzer:
 
             list_xy.remove(closest_xy)
 
-            num_xy_processed += 0
+            num_xy_processed += 1
             if num_xy_processed >= limit:
                 break
 
@@ -204,77 +205,77 @@ class EsriTrafficCountAnalyzer:
         return transformer.transform(x, y)
 
     @staticmethod
-    def convert_lat_lon_to_xy(lon, lat):
+    def convert_lat_lon_to_xy(lat, lon):
         transformer = Transformer.from_crs('epsg:4326', 'epsg:3857')
-        return transformer.transform(lon, lat)
-
-    # @staticmethod
-    # def compute_minimal_bounding_box_size_for_single_input(input_lat_lot, response_cache_json_path,
-    #                                                        num_points_to_include: int = 3):
-    #     input_xy = EsriTrafficCountAnalyzer.convert_lat_lon_to_xy(*input_lat_lot)
-    #
-    #     feature_points = EsriTrafficCountAnalyzer.get_feature_points_from_file(response_cache_json_path)
-    #
-    #     points_dict = EsriTrafficCountAnalyzer.transform_feature_points_to_points_dict(feature_points)
-    #
-    #     dict_closest = EsriTrafficCountAnalyzer.get_closest_points_dict(input_xy, points_dict, limit=num_points_to_include)
-    #
-    #     min_x, max_x, min_y, max_y = EsriTrafficCountAnalyzer.compute_minimal_bounding_box_for_points_dict(input_xy, dict_closest)
-    #
-    #     # TODO make sure that the conversions doesn't mess up the direction of positive and negative, as well as the orientation! Does it matter?
-    #     top_left = (min_x, max_y)
-    #     bottom_right = (max_x, min_y)
-    #
-    #     top_left_lat_lon = EsriTrafficCountAnalyzer.convert_xy_to_lat_lon(*top_left)
-    #     bottom_right_lat_lon = EsriTrafficCountAnalyzer.convert_xy_to_lat_lon(*bottom_right)
-    #
-    #     get_lat_lon_from_bounding_box()
+        return transformer.transform(lat, lon)
 
     @staticmethod
-    def compute_minimal_bounding_box_for_points_dict(input_xy, points_dict):
+    def compute_minimal_bounding_box_size_for_single_input(input_lat_lot, response_cache_json_path,
+                                                           num_points_to_include: int = 3):
+        input_xy = EsriTrafficCountAnalyzer.convert_lat_lon_to_xy(*input_lat_lot)
+
+        feature_points = EsriTrafficCountAnalyzer.get_feature_points_from_file(response_cache_json_path)
+        if not feature_points:
+            return None
+
+        points_dict = EsriTrafficCountAnalyzer.transform_feature_points_to_points_dict(feature_points)
+
+        dict_closest = EsriTrafficCountAnalyzer.get_closest_points_dict(input_xy, points_dict,
+                                                                        limit=num_points_to_include)
+
+        d = EsriTrafficCountAnalyzer.compute_minimal_bounding_box_size_for_points_dict(input_xy, dict_closest)
+        return d
+
+    @staticmethod
+    def compute_minimal_bounding_box_size_for_points_dict(input_xy, points_dict):
         x = input_xy[0]
-        min_x = min(points_dict, key=lambda xy: xy[0])
-        max_x = max(points_dict, key=lambda xy: xy[0])
+        min_x = min(points_dict, key=lambda xy: xy[0])[0]
+        max_x = max(points_dict, key=lambda xy: xy[0])[0]
         min_x_d = x - min_x
         max_x_d = max_x - x
         final_x_d = max(min_x_d, max_x_d)
 
-        y = input_xy[2]
-        min_y = min(points_dict, key=lambda xy: xy[1])
-        max_y = max(points_dict, key=lambda xy: xy[1])
+        y = input_xy[1]
+        min_y = min(points_dict, key=lambda xy: xy[1])[1]
+        max_y = max(points_dict, key=lambda xy: xy[1])[1]
         min_y_d = y - min_y
         max_y_d = max_y - y
         final_y_d = max(min_y_d, max_y_d)
 
-        d = max(final_x_d, final_y_d)
+        rightmost_virtual = EsriTrafficCountAnalyzer.convert_xy_to_lat_lon(x + final_x_d, y)
+        topmost_virtual = EsriTrafficCountAnalyzer.convert_xy_to_lat_lon(x, y + final_y_d)
+        input_lat_lon = EsriTrafficCountAnalyzer.convert_xy_to_lat_lon(*input_xy)
 
-        min_x = x - d
-        max_x = x + d
-        min_y = y - d
-        max_y = y + d
+        d_lat = topmost_virtual[0] - input_lat_lon[0]
+        d_lon = rightmost_virtual[1] - input_lat_lon[1]
 
-        return min_x, max_x, min_y, max_y
+        d_lat_meters = EsriTrafficCountAnalyzer.lat_diff_to_meters(d_lat)
+        d_lon_meters = EsriTrafficCountAnalyzer.lon_diff_to_meters(d_lon, input_lat_lon[0])
 
-    # @staticmethod
-    # def get_lat_lon_from_bounding_box(min_lat, max_lat, min_lon, max_lon):
-    #     """ d: offset (in all directions) in meters """
-    #
-    #     r = 6378137  # Earth’s radius, sphere
-    #
-    #     # Coordinate offsets in radians
-    #     d_lat = (d / r)
-    #     d_lon = d / (r * math.cos(math.pi * lat / 180))
-    #
-    #     # Coordinate offsets in decimal degrees
-    #     d_lat = d_lat * 180 / math.pi
-    #     d_lon = d_lon * 180 / math.pi
-    #
-    #     min_lat = lat - d_lat
-    #     max_lat = lat + d_lat
-    #     min_lon = lon - d_lon
-    #     max_lon = lon + d_lon
-    #
-    #     return lat, lon, d
+        d = max(d_lat_meters, d_lon_meters)
+        return d
+
+    @staticmethod
+    def lat_diff_to_meters(d_lat):
+        # Decimal degrees -> Radians.
+        d_lat = d_lat * math.pi / 180
+
+        # Earth’s radius, sphere.
+        r = 6378137
+
+        d = round(d_lat * r)
+        return d
+
+    @staticmethod
+    def lon_diff_to_meters(d_lon, lat_nearby):
+        # Decimal degrees -> Radians.
+        d_lon = d_lon * math.pi / 180
+
+        # Earth’s radius, sphere.
+        r = 6378137
+
+        d = round(d_lon * (r * math.cos(math.pi * lat_nearby / 180)))
+        return d
 
     def analyze(self, input_lat_lot, response_cache_json_path, input_address: str = None,
                 resend_request_if_no_unfiltered_data: bool = True, limit_num_closest_same_street: int = None,
@@ -283,6 +284,8 @@ class EsriTrafficCountAnalyzer:
 
         bounding_box = esri_client.get_bounding_box(*input_lat_lot, self.__box_size_m)
         print(f"bounding_box: {bounding_box}")
+
+        response_cache_json_path = self.__output_cache_dir_path + f"/responses/row{row_num}_{self.__box_size_m}m_response.json"
 
         if not Path(response_cache_json_path).is_file():
             json_response = None
@@ -337,7 +340,11 @@ class EsriTrafficCountAnalyzer:
                     input_address,
                     limit_num_closest_to_use=limit_num_closest_unfiltered
                 )
-        return mean_count, most_frequent_count_year, num_closest_used, total_closest_found
+        # TODO change limit_num_closest_same_street to be used in both cases
+        minimal_bounding_box_size = self.compute_minimal_bounding_box_size_for_single_input(input_lat_lot,
+                                                                                            response_cache_json_path,
+                                                                                            limit_num_closest_same_street)
+        return mean_count, most_frequent_count_year, num_closest_used, total_closest_found, minimal_bounding_box_size
 
     def analyze_by_api(self, lat, lon, input_address: str = None, resend_request_if_no_unfiltered_data: bool = False):
         input_lat_lot = (float(lat), float(lon))
@@ -345,9 +352,10 @@ class EsriTrafficCountAnalyzer:
 
         analysis_result = self.analyze(input_lat_lot, response_cache_json_path, input_address,
                                        resend_request_if_no_unfiltered_data)
-        (mean_count, most_frequent_count_year, num_closest_used, total_closest_found) = analysis_result
+        (mean_count, most_frequent_count_year, num_closest_used, total_closest_found,
+         minimal_bounding_box_size) = analysis_result
         print(analysis_result)
-        return mean_count, most_frequent_count_year, num_closest_used, total_closest_found
+        return mean_count, most_frequent_count_year, num_closest_used, total_closest_found, minimal_bounding_box_size
 
     def analyze_by_csv(self, input_csv_path, num_closest_range,
                        resend_request_if_no_unfiltered_data: bool = False):
@@ -359,34 +367,48 @@ class EsriTrafficCountAnalyzer:
 
         input_csv_df.to_csv(os.path.splitext(input_csv_path)[0] + '_with_counts.csv')
 
+    # TODO use or remove
+    # def analyze_csv_minimal_bounding_box(self, input_csv_path, num_closest_range,
+    #                    resend_request_if_no_unfiltered_data: bool = False):
+    #     input_csv_df = pd.read_csv(input_csv_path)
+    #
+    #     for limit_num_closest_to_use in num_closest_range:
+    #         self.append_traffic_counts_to_df(input_csv_df, limit_num_closest_to_use, limit_num_closest_to_use,
+    #                                          resend_request_if_no_unfiltered_data)
+    #
+    #     input_csv_df.to_csv(os.path.splitext(input_csv_path)[0] + '_with_counts.csv')
+
     def append_traffic_counts_to_df(self, input_csv_df, limit_num_closest_to_use, limit_num_closest_unfiltered,
                                     resend_request_if_no_unfiltered_data: bool = False):
-        traffic_count_list, traffic_year_list, traffic_num_closest_used, traffic_total_closest = [], [], [], []
+        traffic_count_list, traffic_year_list, traffic_num_closest_used, traffic_total_closest, minimal_box_sizes = [], [], [], [], []
         for row_num, row in input_csv_df.iterrows():
             print(f"----------------- row_num: {row_num} ----------------------")
             input_lat_lot = (row['Latitude'], row['Longitude'])
             input_address = row['address']
-            response_cache_json_path = self.__output_cache_dir_path + f"/responses/row{row_num}_{self.__box_size_m}m_response.json"
 
             analysis_result = self.analyze(input_lat_lot, response_cache_json_path, input_address,
                                            resend_request_if_no_unfiltered_data, limit_num_closest_to_use,
                                            limit_num_closest_unfiltered)
-            (mean_count, most_frequent_count_year, num_closest_used, total_closest_found) = analysis_result
+            (mean_count, most_frequent_count_year, num_closest_used, total_closest_found,
+             minimal_bounding_box_size) = analysis_result
 
             traffic_count_list.append(mean_count)
             traffic_year_list.append(most_frequent_count_year)
             traffic_num_closest_used.append(num_closest_used)
             traffic_total_closest.append(total_closest_found)
+            minimal_box_sizes.append(minimal_bounding_box_size)
 
         num_rows = input_csv_df.shape[0]
         traffic_count_list += [None] * (num_rows - len(traffic_count_list))
         traffic_year_list += [None] * (num_rows - len(traffic_year_list))
         traffic_num_closest_used += [None] * (num_rows - len(traffic_num_closest_used))
         traffic_total_closest += [None] * (num_rows - len(traffic_total_closest))
+        minimal_box_sizes += [None] * (num_rows - len(minimal_box_sizes))
         input_csv_df[f'avg_{limit_num_closest_to_use}_traffic_count'] = traffic_count_list
         input_csv_df[f'avg_{limit_num_closest_to_use}_traffic_year'] = traffic_year_list
         input_csv_df[f'avg_{limit_num_closest_to_use}_traffic_num_closest_used'] = traffic_num_closest_used
         input_csv_df[f'avg_{limit_num_closest_to_use}_traffic_total_closest'] = traffic_total_closest
+        input_csv_df[f'{limit_num_closest_to_use}_p_minimal_box_size'] = minimal_box_sizes
 
 
 if __name__ == '__main__':
@@ -395,6 +417,6 @@ if __name__ == '__main__':
     lat = 40.6653
     lon = -73.72904
 
-    # analyzer.analyze_by_csv("input2.csv", range(1, 10))
-    traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
+    analyzer.analyze_by_csv("input2.csv", range(1, 3))
+    # traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
     # print(traffic_count, most_frequent_count_year, num_closest_used, total_closest_found)

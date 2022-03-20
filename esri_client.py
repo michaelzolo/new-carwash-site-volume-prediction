@@ -11,6 +11,7 @@ class EsriClient:
 
     @staticmethod
     def get_bounding_box(lat, lon, d):
+        # TODO unit test for this and similar functions
         """ d: offset (in all directions) in meters """
 
         r = 6378137  # Earth’s radius, sphere
