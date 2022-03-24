@@ -193,6 +193,7 @@ class EsriTrafficCountAnalyzer:
 
     @staticmethod
     def fp_data_from_file(file_path):
+        # TODO use Path
         features = []
         with open(file_path, 'r') as file:
             data = json.load(file)

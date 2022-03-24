@@ -1,4 +1,6 @@
+import json
 import math
+from pathlib import Path
 from typing import Optional
 
 import requests
@@ -14,7 +16,9 @@ class EsriClient:
         # self.__token = "N39WC51_x8vaggafDm6fb2QYFOvKDxrNsaO5CcBjraLdXNJ4kzK33nbPQwRDFAtG207d0MuOmv4xJjVK_1Tuq_zq0ZevSVXQHiG_y77nef4Mvpky2R14xVkWpkc0NYYB4zHoTx8O06TFjvSVAAUIxG7vMMdV9pCAHRyCDULhgq4Dm2lUQ2mTHASYxzAnPFFVU5lkV34GqXPmvQLeXghqz-1eiKk_PZBVVMEstzBpGt91qXyZB6YoUVC_wA_pnkaQayekJ9f4zC1UjgxIQAuYqUCOMJ_F5s9W_KBDdqIyJ1Vj7rfEkCZhx4Lu5lZbTZla"
         # self.__token = "Sm0J--BsyfonpJoP5_V53sjgrhFHoMeLraOJbe34gWuHOueZ99EJ0GuKAuQF6AO7cZ2xEmwDLDxfmUH58IrOGT4E3LXG6qS5mfzyZkxas07KfpcgS_0uBt-8KcufF5770gjmnGoYDkkKhBFQWx4viK6WZI5ZEQO3L_qBHJN7wDy0bbX76lJT_Q2j_y_ri1KNv50N5oOlC-rZ89DyL8xcQfyrLuWtDgR7-mu34fZtFpP4E-XIeZgThIo8J715sgX3goUamLZU3GibBT3LRmTubGcK4ErCubPXvkMUnorZCHqVwrKlBagEmSJh5Y0dihGu"
         # self.__token = "1pqsnfm_ba86N0lohVGKUIqI9vgRWFz3wMNN7kIqNyZ-_qkZIJ0r2VBhwECELtDd5G7ptKBjXWkxMOy6S8KuRnkL6cQ65F4VLLzNIoSn-AyvPjAXGDNYmfpjlwLR338zNt6eEthWtXBW1qixBSMlP3K21I2qKQ2PQiD2xK0jf-MaJINBNr4OpPMx25WNJFbOG4oSbBfctApQFRuwqOjEo-QmjkJYyDjvn9rEz_ujKjboG8w7BMoIaFXyYkZAwt_Yus7rvHm5_ZRv56gR_9QmgJrk-vs0c99d_2NaWH3TZisk8airhGwj_0r5ZN4ljawr"
-        self.__token = "3PNe3B9duNckNQpGzM-b1hihmFDcQ2hbfdHEs-9KKFgzcaqeeQJwVrNEjPs7khGebkVk_mzVfGWe5-h1UufQoIwc6hxnwiUKjQgqmHzsNWdNh5Fr0wJTksT2hynm1XeYqXchdevuoe_4BxKGMk9uIOkiJ-HK9ccmRO0wU1-tfwtswUiv2f92LG9lUtwx7JxM0mFEY07QjWKr20O6Maf5PDme1BWkyXUB3mufYXtAj12ESYOPsFLcVGNj_LLbt4x9DCf-BUGosO9M6UYhyBJD0g.."
+        # self.__token = "3PNe3B9duNckNQpGzM-b1hihmFDcQ2hbfdHEs-9KKFgzcaqeeQJwVrNEjPs7khGebkVk_mzVfGWe5-h1UufQoIwc6hxnwiUKjQgqmHzsNWdNh5Fr0wJTksT2hynm1XeYqXchdevuoe_4BxKGMk9uIOkiJ-HK9ccmRO0wU1-tfwtswUiv2f92LG9lUtwx7JxM0mFEY07QjWKr20O6Maf5PDme1BWkyXUB3mufYXtAj12ESYOPsFLcVGNj_LLbt4x9DCf-BUGosO9M6UYhyBJD0g.."
+        self.__token_cache_path = "auth_cache/token.json"
+        self.__token = self.get_token()
 
     # def submit_request(request):
     #     """ Returns the response from an HTTP request in json format."""
@@ -53,6 +57,14 @@ class EsriClient:
     #                 raise Exception("Portal error: {} ".format(error_mess))
 
     def get_token(self):
+        token = self.get_token_from_file()
+
+        if token is None:
+            token = self.get_new_token()
+
+        return token
+
+    def get_new_token(self):
         ezcarwash_username = "Ezcarwash"
         ezcarwash_password = "3301Hallandale"
 
@@ -62,9 +74,27 @@ class EsriClient:
         gis_ezcarwash = GIS(url=ezcarwash_url_simplified, client_id="busanalystonline_2", username=ezcarwash_username,
                             password=ezcarwash_password)
 
-        self.__token = gis_ezcarwash._con.token
-        print(f"new_token:{self.__token}")
-        return self.__token
+        token = gis_ezcarwash._con.token
+        # print(f"new_token:{token}")
+        self.save_token_to_file(token)
+        return token
+
+    def get_token_from_file(self):
+        output_path_obj = Path(self.__token_cache_path)
+
+        if not output_path_obj.is_file():
+            return None
+
+        with open(output_path_obj, 'r') as f:
+            data = json.load(f)
+            return data['token']
+
+    def save_token_to_file(self,token):
+        output_path_obj = Path(self.__token_cache_path)
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path_obj, 'w') as f:
+            json.dump({'token': token}, f)
 
     @staticmethod
     def get_bounding_box(lat, lon, d):
@@ -106,7 +136,7 @@ class EsriClient:
         if 'error' in res_json:
             if res_json['error']['code'] == ERROR_CODE_INVALID_TOKEN:
                 print("Token error. Generating new token...")
-                self.get_token()
+                self.get_new_token()
                 print("Token generated.")
                 if num_tries > 1:
                     print("Sending new request...")
@@ -121,6 +151,8 @@ class EsriClient:
 if __name__ == '__main__':
     pass
     # client = EsriClient()
+    # print(client.get_token())
+
     #
     # # token = client.get_token()
     # # print(token)
