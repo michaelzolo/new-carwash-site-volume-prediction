@@ -12,49 +12,8 @@ ERROR_CODE_INVALID_TOKEN = 498
 
 class EsriClient:
     def __init__(self):
-        # self.__token = "0VzbnJ_GntgdEB4Mf8EcEi7rnMCJg8TvGfvjaaW9HTIF2jMqAncVfdRdnaMGJXtnakO66e4rX8RE7qZ4TWOjLaGtoXT3QhLGJfDxwhZ7Mkfl_Y_iG_T8pPgmlRcrHqCy8_0z98AOjb_1ynVr0HfzHOH-_RbV0IOETX_mK32eQfPooobh7eAS8u_DmnXUYpylHbxKSKGMzKYPuZ4W9RnO1Wz9EFUusLmnNH6lJJjliW_ZO42J_2X_6B4ojzVOLsvGzW0-jmQDc1z7IhF-aALC0gs6W1AvfnbbyKszFb70fxkId0uGEL9kwEiIR46A7sve"
-        # self.__token = "N39WC51_x8vaggafDm6fb2QYFOvKDxrNsaO5CcBjraLdXNJ4kzK33nbPQwRDFAtG207d0MuOmv4xJjVK_1Tuq_zq0ZevSVXQHiG_y77nef4Mvpky2R14xVkWpkc0NYYB4zHoTx8O06TFjvSVAAUIxG7vMMdV9pCAHRyCDULhgq4Dm2lUQ2mTHASYxzAnPFFVU5lkV34GqXPmvQLeXghqz-1eiKk_PZBVVMEstzBpGt91qXyZB6YoUVC_wA_pnkaQayekJ9f4zC1UjgxIQAuYqUCOMJ_F5s9W_KBDdqIyJ1Vj7rfEkCZhx4Lu5lZbTZla"
-        # self.__token = "Sm0J--BsyfonpJoP5_V53sjgrhFHoMeLraOJbe34gWuHOueZ99EJ0GuKAuQF6AO7cZ2xEmwDLDxfmUH58IrOGT4E3LXG6qS5mfzyZkxas07KfpcgS_0uBt-8KcufF5770gjmnGoYDkkKhBFQWx4viK6WZI5ZEQO3L_qBHJN7wDy0bbX76lJT_Q2j_y_ri1KNv50N5oOlC-rZ89DyL8xcQfyrLuWtDgR7-mu34fZtFpP4E-XIeZgThIo8J715sgX3goUamLZU3GibBT3LRmTubGcK4ErCubPXvkMUnorZCHqVwrKlBagEmSJh5Y0dihGu"
-        # self.__token = "1pqsnfm_ba86N0lohVGKUIqI9vgRWFz3wMNN7kIqNyZ-_qkZIJ0r2VBhwECELtDd5G7ptKBjXWkxMOy6S8KuRnkL6cQ65F4VLLzNIoSn-AyvPjAXGDNYmfpjlwLR338zNt6eEthWtXBW1qixBSMlP3K21I2qKQ2PQiD2xK0jf-MaJINBNr4OpPMx25WNJFbOG4oSbBfctApQFRuwqOjEo-QmjkJYyDjvn9rEz_ujKjboG8w7BMoIaFXyYkZAwt_Yus7rvHm5_ZRv56gR_9QmgJrk-vs0c99d_2NaWH3TZisk8airhGwj_0r5ZN4ljawr"
-        # self.__token = "3PNe3B9duNckNQpGzM-b1hihmFDcQ2hbfdHEs-9KKFgzcaqeeQJwVrNEjPs7khGebkVk_mzVfGWe5-h1UufQoIwc6hxnwiUKjQgqmHzsNWdNh5Fr0wJTksT2hynm1XeYqXchdevuoe_4BxKGMk9uIOkiJ-HK9ccmRO0wU1-tfwtswUiv2f92LG9lUtwx7JxM0mFEY07QjWKr20O6Maf5PDme1BWkyXUB3mufYXtAj12ESYOPsFLcVGNj_LLbt4x9DCf-BUGosO9M6UYhyBJD0g.."
         self.__token_cache_path = "auth_cache/token.json"
         self.__token = self.get_token()
-
-    # def submit_request(request):
-    #     """ Returns the response from an HTTP request in json format."""
-    #     with contextlib.closing(urllib2.urlopen(request)) as response:
-    #         job_info = json.load(response)
-    #         return job_info
-    #
-    # def get_token(portal_url, username, password):
-    #     """ Returns an authentication token for use in ArcGIS Online."""
-    #
-    #     # Set the username and password parameters before
-    #     #  getting the token.
-    #     #
-    #     params = {"username": username,
-    #               "password": password,
-    #               "referer": "http://www.arcgis.com",
-    #               "f": "json"}
-    #
-    #     token_url = "{}/generateToken".format(portal_url)
-    #     request = urllib2.Request(token_url, urllib.urlencode(params))
-    #     token_response = submit_request(request)
-    #     if "token" in token_response:
-    #         print("Getting token...")
-    #         token = token_response.get("token")
-    #         return token
-    #     else:
-    #         # Request for token must be made through HTTPS.
-    #         #
-    #         if "error" in token_response:
-    #             error_mess = token_response.get("error", {}).get("message")
-    #             if "This request needs to be made over https." in error_mess:
-    #                 token_url = token_url.replace("http://", "https://")
-    #                 token = get_token(token_url, username, password)
-    #                 return token
-    #             else:
-    #                 raise Exception("Portal error: {} ".format(error_mess))
 
     def get_token(self):
         token = self.get_token_from_file()
@@ -68,15 +27,15 @@ class EsriClient:
         ezcarwash_username = "Ezcarwash"
         ezcarwash_password = "3301Hallandale"
 
-        # ezcarwash_url = "https://www.arcgis.com/sharing/rest/oauth2/authorize?client_id=busanalystonline_2&redirect_uri=https%3A%2F%2Fbao.arcgis.com%2FesriBAO%2Fpostsignin%2Fsignin.html&response_type=token&expiration=20160&locale=en-us&force_login=false"
         ezcarwash_url_simplified = "https://www.arcgis.com/sharing/rest"
 
         gis_ezcarwash = GIS(url=ezcarwash_url_simplified, client_id="busanalystonline_2", username=ezcarwash_username,
                             password=ezcarwash_password)
 
         token = gis_ezcarwash._con.token
-        # print(f"new_token:{token}")
+
         self.save_token_to_file(token)
+
         return token
 
     def get_token_from_file(self):
@@ -150,13 +109,3 @@ class EsriClient:
 
 if __name__ == '__main__':
     pass
-    # client = EsriClient()
-    # print(client.get_token())
-
-    #
-    # # token = client.get_token()
-    # # print(token)
-    #
-    # js = client.get_traffic_counts_by_bounding_box(39.0578534235463, 39.111626576453695, -108.62965808210265,
-    #                                                -108.56038191789736)
-    # print(js)

@@ -322,14 +322,7 @@ class EsriTrafficCountAnalyzer:
 
         return self.transform_f_points_to_dict(fp_data)
 
-    def analyze(self, p_lat_lon: tuple, address_filter: Optional[str] = None,
-                limit_same_street: Optional[int] = None,
-                limit_unfiltered: Optional[int] = None):
-        if limit_same_street is None:
-            # TODO ? change csv analysis logic, and remove those params
-            limit_same_street = self.__limit_same_street
-        if limit_unfiltered is None:
-            limit_unfiltered = self.__limit_unfiltered
+    def analyze(self, p_lat_lon: tuple, address_filter: Optional[str] = None):
 
         p_xy = self.convert_lat_lon_to_xy(*p_lat_lon)
 
@@ -442,21 +435,11 @@ class EsriTrafficCountAnalyzer:
 
 
 if __name__ == '__main__':
-    analyzer = EsriTrafficCountAnalyzer(
-        output_cache_dir_path=r"output/api")  # output_cache_dir_path without '/' on the edges
+    pass
+    # analyzer = EsriTrafficCountAnalyzer(
+    #     output_cache_dir_path=r"output/api")  # output_cache_dir_path without '/' on the edges
 
-    # lat, lon = 39.08474, -108.59502
-
-    # lat, lon = 33.42133, -86.69816
-    lat = 40.425770
-    lon = -74.290840
-    traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
-    print(traffic_count, most_frequent_count_year, num_closest_used, total_closest_found)
-
-    # analyzer.rename_cached_responses_by_csv("input2.csv", "output/csv/responses_renamed")
-
-    # for i in range(1,10):
-    #     print(f"-----\navg_{i}")
-    #     analyzer.set_limit_unfiltered(i)
-    #     traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
-    #     print(traffic_count, most_frequent_count_year, num_closest_used, total_closest_found)
+    # lat = 40.425771
+    # lon = -74.290840
+    # traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
+    # print(traffic_count, most_frequent_count_year, num_closest_used, total_closest_found)
