@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -379,6 +380,7 @@ class EsriTrafficCountAnalyzer:
     def append_traffic_counts_to_df(self, input_csv_df, limit_num_closest_to_use, limit_num_closest_unfiltered,
                                     resend_request_if_no_unfiltered_data: bool = False):
         traffic_count_list, traffic_year_list, traffic_num_closest_used, traffic_total_closest, minimal_box_sizes = [], [], [], [], []
+
         for row_num, row in input_csv_df.iterrows():
             print(f"----------------- row_num: {row_num} ----------------------")
             input_lat_lot = (row['Latitude'], row['Longitude'])
@@ -421,6 +423,22 @@ class EsriTrafficCountAnalyzer:
         print(self.__esri_client.get_bounding_box(lat, lon, box_size))
         self.save_point_data_to_csv(lat, lon)
 
+    @staticmethod
+    def rename_cached_responses_by_csv(helper_csv_path, cache_dir):
+        helper_df = pd.read_csv(helper_csv_path)
+
+        cache_path_obj = Path(cache_dir)
+
+        for json_path_obj in cache_path_obj.iterdir():
+            json_name = json_path_obj.name
+            prefix, base_name = json_name.split('_', 1)
+            row_i = int(re.findall(r'\d+', prefix)[0])
+            lat = helper_df.at[row_i, 'Latitude']
+            lon = helper_df.at[row_i, 'Longitude']
+            new_name = f"lat{lat}_lon{lon}_{base_name}"
+            dir_path = json_path_obj.parents[0]
+            json_path_obj.rename(dir_path/new_name)
+
 
 if __name__ == '__main__':
     analyzer = EsriTrafficCountAnalyzer(
@@ -428,8 +446,13 @@ if __name__ == '__main__':
 
     # lat, lon = 39.08474, -108.59502
 
-    lat, lon = 33.42133, -86.69816
+    # lat, lon = 33.42133, -86.69816
+    lat = 40.425770
+    lon = -74.290840
     traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
+    print(traffic_count, most_frequent_count_year, num_closest_used, total_closest_found)
+
+    # analyzer.rename_cached_responses_by_csv("input2.csv", "output/csv/responses_renamed")
 
     # for i in range(1,10):
     #     print(f"-----\navg_{i}")
