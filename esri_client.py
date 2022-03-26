@@ -19,14 +19,39 @@ class EsriClient:
         token = self.get_token_from_file()
 
         if token is None:
-            token = self.get_new_token()
+            print("Token cache not found. Generating new token...")
+            token = self.generate_new_token()
+            print("Token generated.")
 
         return token
 
-    def get_new_token(self):
+    def generate_new_token(self):
+        url = "https://www.arcgis.com/sharing/rest/generateToken?f=json"
+        payload = {'username': 'ezcarwash',
+                   'password': '3301Hallandale',
+                   'referer': 'https://www.arcgis.com/'}
+        errormessage=""
+        response = None
+        try:
+            response = requests.post(url, data=payload)
+            if response.ok is False:
+                errormessage += "Response status code: {} Reason for failure: {}".format(response.status_code,
+                                                                                         requests.status_codes._codes[
+                                                                                             response.status_code][0])
+        except requests.exceptions.RequestException as e:
+            errormessage += f"RequestException: {str(e)}"
+        if errormessage != "":
+            raise requests.exceptions.RequestException("Token request error:" + str(errormessage))
+
+        token_json = response.json()
+
+        self.save_token_json_to_file(token_json)
+
+        return token_json['token']
+
+    def generate_new_token_v1(self):
         ezcarwash_username = "Ezcarwash"
         ezcarwash_password = "3301Hallandale"
-
         ezcarwash_url_simplified = "https://www.arcgis.com/sharing/rest"
 
         gis_ezcarwash = GIS(url=ezcarwash_url_simplified, client_id="busanalystonline_2", username=ezcarwash_username,
@@ -34,7 +59,7 @@ class EsriClient:
 
         token = gis_ezcarwash._con.token
 
-        self.save_token_to_file(token)
+        self.save_token_json_to_file(token)
 
         return token
 
@@ -45,15 +70,16 @@ class EsriClient:
             return None
 
         with open(output_path_obj, 'r') as f:
+            # TODO check expiration
             data = json.load(f)
             return data['token']
 
-    def save_token_to_file(self,token):
+    def save_token_json_to_file(self, token_json):
         output_path_obj = Path(self.__token_cache_path)
         output_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path_obj, 'w') as f:
-            json.dump({'token': token}, f)
+            json.dump(token_json, f)
 
     @staticmethod
     def get_bounding_box(lat, lon, d):
@@ -94,18 +120,20 @@ class EsriClient:
         res_json = response.json()
         if 'error' in res_json:
             if res_json['error']['code'] == ERROR_CODE_INVALID_TOKEN:
-                print("Token error. Generating new token...")
-                self.get_new_token()
-                print("Token generated.")
+                print("Token error response.")
                 if num_tries > 1:
-                    print("Sending new request...")
+                    print(f"(Retries left: {num_tries}). Generating new token...")
+                    self.generate_new_token()
+                    print("Token generated. Retying request...")
                     return self.get_traffic_counts_by_bounding_box(min_lat, max_lat, min_lon, max_lon,
                                                                    street_filter,
                                                                    num_tries - 1)
                 else:
-                    print(f"Num tries exceeded. Returning final response: {res_json}")
+                    print(f"Exceeded number of retry attempts. Final response: {res_json}")
         return res_json
 
 
 if __name__ == '__main__':
     pass
+    # client = EsriClient()
+    # print(client.generate_new_token())

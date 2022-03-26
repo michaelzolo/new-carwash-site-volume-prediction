@@ -20,7 +20,7 @@ from esri_client import EsriClient
 # Defaults (later can move them into config file).
 LIMIT_SAME_STREET_DEFAULT = 4
 LIMIT_UNFILTERED_DEFAULT = 4
-BOX_SIZE_DEFAULT = 3000
+BOX_SIZE_DEFAULT = 101
 RESEND_IF_MISSING_CACHE_UNFILTERED_DEFAULT = True
 
 
@@ -438,8 +438,8 @@ if __name__ == '__main__':
     pass
     # analyzer = EsriTrafficCountAnalyzer(
     #     output_cache_dir_path=r"output/api")  # output_cache_dir_path without '/' on the edges
-
-    # lat = 40.425771
-    # lon = -74.290840
+    #
+    # lat, lon = 33.551310, -84.255990
     # traffic_count, most_frequent_count_year, num_closest_used, total_closest_found = analyzer.analyze_by_api(lat, lon)
     # print(traffic_count, most_frequent_count_year, num_closest_used, total_closest_found)
+    # print("done")
