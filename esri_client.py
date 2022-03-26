@@ -1,5 +1,6 @@
 import json
 import math
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -19,7 +20,7 @@ class EsriClient:
         token = self.get_token_from_file()
 
         if token is None:
-            print("Token cache not found. Generating new token...")
+            print("Generating new token...")
             token = self.generate_new_token()
             print("Token generated.")
 
@@ -49,30 +50,23 @@ class EsriClient:
 
         return token_json['token']
 
-    def generate_new_token_v1(self):
-        ezcarwash_username = "Ezcarwash"
-        ezcarwash_password = "3301Hallandale"
-        ezcarwash_url_simplified = "https://www.arcgis.com/sharing/rest"
-
-        gis_ezcarwash = GIS(url=ezcarwash_url_simplified, client_id="busanalystonline_2", username=ezcarwash_username,
-                            password=ezcarwash_password)
-
-        token = gis_ezcarwash._con.token
-
-        self.save_token_json_to_file(token)
-
-        return token
-
     def get_token_from_file(self):
         output_path_obj = Path(self.__token_cache_path)
 
         if not output_path_obj.is_file():
+            print("Token cache not found.")
             return None
 
         with open(output_path_obj, 'r') as f:
-            # TODO check expiration
-            data = json.load(f)
-            return data['token']
+            token_json = json.load(f)
+
+            if 'expires' in token_json:
+                now = int(round(time.time() * 1000))
+                if now > token_json['expires']:
+                    print("Token expired.")
+                    return None
+
+            return token_json['token']
 
     def save_token_json_to_file(self, token_json):
         output_path_obj = Path(self.__token_cache_path)
