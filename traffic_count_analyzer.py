@@ -24,8 +24,9 @@ LIMIT_UNFILTERED_DEFAULT = 4
 BOX_SIZE_DEFAULT = 3000
 RESEND_IF_MISSING_CACHE_UNFILTERED_DEFAULT = True
 
-
 log = logging.getLogger(LOGGER_NAME)
+
+
 # log.setLevel(logging.DEBUG)
 #
 # log_formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(message)s')
@@ -107,7 +108,9 @@ class EsriTrafficCountAnalyzer:
                                                cache_file_label="cross-any")
         if df_closest.empty:
             log.warning(
-                f"!! ATTENTION: haven't found any closest points in: {dict_xy_fp}. Consider sending a different request, but first check the closest point filters!")
+                f"!! ATTENTION: haven't found any closest points among nearby points: {dict_xy_fp},"
+                f" point: {p_xy}, address_filter: {address_filter}."
+                f" Consider sending a different request, but first check the closest point filters!")
             return None, None, None, None
         else:
             total_closest_found = df_closest.shape[0]
@@ -333,7 +336,8 @@ class EsriTrafficCountAnalyzer:
                     json_response = self.__esri_client.get_traffic_counts_by_bounding_box(*bounding_box, street_filter)
                 except:
                     # TODO tries limit
-                    log.warning("Failed request. Trying again...")
+                    log.warning(
+                        f"Failed request for point {input_lat_lot}, box size: {self.__box_size_m}m. Trying again...")
                     time.sleep(1)
             EsriTrafficCountAnalyzer.save_json_to_file(json_response, cache_path)
             fp_data = json_response['features']
@@ -449,7 +453,7 @@ class EsriTrafficCountAnalyzer:
             lon = helper_df.at[row_i, 'Longitude']
             new_name = f"lat{lat}_lon{lon}_{base_name}"
             dir_path = json_path_obj.parents[0]
-            json_path_obj.rename(dir_path/new_name)
+            json_path_obj.rename(dir_path / new_name)
 
 
 if __name__ == '__main__':
