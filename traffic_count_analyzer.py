@@ -21,7 +21,7 @@ from esri_client import EsriClient, LOGGER_NAME
 # Defaults (later can move them into config file).
 LIMIT_SAME_STREET_DEFAULT = 4
 LIMIT_UNFILTERED_DEFAULT = 4
-BOX_SIZE_DEFAULT = 103
+BOX_SIZE_DEFAULT = 3000
 RESEND_IF_MISSING_CACHE_UNFILTERED_DEFAULT = True
 
 
