@@ -132,7 +132,7 @@ class EsriClient:
         res_json = response.json()
         if 'error' in res_json:
             if res_json['error']['code'] == ERROR_CODE_INVALID_TOKEN:
-                log.error("Token error (response).")
+                log.error(f"Token error (response code {ERROR_CODE_INVALID_TOKEN}).")
                 if num_tries > 1:
                     log.warning(f"(Retries left: {num_tries}). Generating new token...")
                     self.generate_new_token()
