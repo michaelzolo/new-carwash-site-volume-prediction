@@ -23,23 +23,9 @@ LIMIT_SAME_STREET_DEFAULT = 4
 LIMIT_UNFILTERED_DEFAULT = 4
 BOX_SIZE_DEFAULT = 3000
 RESEND_IF_MISSING_CACHE_UNFILTERED_DEFAULT = True
+FILTER_YEARS_AGO_PREFERENCE = 5
 
 log = logging.getLogger(LOGGER_NAME)
-
-
-# log.setLevel(logging.DEBUG)
-#
-# log_formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(message)s')
-#
-# stdout_handler = logging.StreamHandler()
-# stdout_handler.setLevel(logging.INFO)
-# stdout_handler.setFormatter(log_formatter)
-# log.addHandler(stdout_handler)
-#
-# file_handler = logging.FileHandler(f"{LOGGER_NAME}.log")
-# file_handler.setLevel(logging.WARNING)
-# file_handler.setFormatter(log_formatter)
-# log.addHandler(file_handler)
 
 
 class EsriTrafficCountAnalyzer:
@@ -88,8 +74,8 @@ class EsriTrafficCountAnalyzer:
         # Same street. Up to 5 years old. (The best alternative)
         df_closest = self.get_closest_p_df(p_xy, dict_xy_fp,
                                            street_substring_filter=street_filter,
-                                           years_ago_filter=5,
-                                           cache_file_label="same-5yo")
+                                           years_ago_filter=FILTER_YEARS_AGO_PREFERENCE,
+                                           cache_file_label=f"same-{FILTER_YEARS_AGO_PREFERENCE}yo")
         if df_closest.empty:
             # Same street. Any year.
             df_closest = self.get_closest_p_df(p_xy, dict_xy_fp,
@@ -99,8 +85,8 @@ class EsriTrafficCountAnalyzer:
             # Cross street. Up to 5 years old.
             df_closest = self.get_closest_p_df(p_xy, dict_xy_fp,
                                                cross_st_substring_filter=street_filter,
-                                               years_ago_filter=5,
-                                               cache_file_label="cross-5yo")
+                                               years_ago_filter=FILTER_YEARS_AGO_PREFERENCE,
+                                               cache_file_label=f"cross-{FILTER_YEARS_AGO_PREFERENCE}yo")
         if df_closest.empty:
             # Cross street. Any year.
             df_closest = self.get_closest_p_df(p_xy, dict_xy_fp,
@@ -366,6 +352,7 @@ class EsriTrafficCountAnalyzer:
 
     def analyze_by_api(self, lat, lon, input_address: str = None):
         input_lat_lot = (float(lat), float(lon))
+        log.info(f"Analyzing point: {input_lat_lot}, box size: {self.__box_size_m}m, address filter: {input_address}")
 
         analysis_result = self.analyze(input_lat_lot, input_address)
         mean_count, most_frequent_count_year, num_closest_used, total_closest_found = analysis_result
