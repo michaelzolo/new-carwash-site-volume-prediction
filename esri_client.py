@@ -3,12 +3,28 @@ import math
 import time
 from pathlib import Path
 from typing import Optional
-
 import requests
+import logging
 
-from arcgis.gis import GIS
+LOGGER_NAME = 'traffic_count'
 
 ERROR_CODE_INVALID_TOKEN = 498
+
+
+log = logging.getLogger(LOGGER_NAME)
+log.setLevel(logging.DEBUG)
+
+log_formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(message)s')
+
+stdout_handler = logging.StreamHandler()
+stdout_handler.setLevel(logging.INFO)
+stdout_handler.setFormatter(log_formatter)
+log.addHandler(stdout_handler)
+
+file_handler = logging.FileHandler(f"{LOGGER_NAME}.log")
+file_handler.setLevel(logging.WARNING)
+file_handler.setFormatter(log_formatter)
+log.addHandler(file_handler)
 
 
 class EsriClient:
@@ -20,9 +36,9 @@ class EsriClient:
         token = self.get_token_from_file()
 
         if token is None:
-            print("Generating new token...")
+            log.info("Generating new token...")
             token = self.generate_new_token()
-            print("Token generated.")
+            log.warning("New token generated.")
 
         return token
 
@@ -31,7 +47,7 @@ class EsriClient:
         payload = {'username': 'ezcarwash',
                    'password': '3301Hallandale',
                    'referer': 'https://www.arcgis.com/'}
-        errormessage=""
+        errormessage = ""
         response = None
         try:
             response = requests.post(url, data=payload)
@@ -42,6 +58,8 @@ class EsriClient:
         except requests.exceptions.RequestException as e:
             errormessage += f"RequestException: {str(e)}"
         if errormessage != "":
+            log.error("Token request error:" + str(errormessage))
+            # TODO retry request, instead of raise
             raise requests.exceptions.RequestException("Token request error:" + str(errormessage))
 
         token_json = response.json()
@@ -54,7 +72,7 @@ class EsriClient:
         output_path_obj = Path(self.__token_cache_path)
 
         if not output_path_obj.is_file():
-            print("Token cache not found.")
+            log.warning("Token cache not found.")
             return None
 
         with open(output_path_obj, 'r') as f:
@@ -63,7 +81,7 @@ class EsriClient:
             if 'expires' in token_json:
                 now = int(round(time.time() * 1000))
                 if now > token_json['expires']:
-                    print("Token expired.")
+                    log.warning("Token expired.")
                     return None
 
             return token_json['token']
@@ -114,20 +132,20 @@ class EsriClient:
         res_json = response.json()
         if 'error' in res_json:
             if res_json['error']['code'] == ERROR_CODE_INVALID_TOKEN:
-                print("Token error response.")
+                log.error("Token error (response).")
                 if num_tries > 1:
-                    print(f"(Retries left: {num_tries}). Generating new token...")
+                    log.warning(f"(Retries left: {num_tries}). Generating new token...")
                     self.generate_new_token()
-                    print("Token generated. Retying request...")
+                    log.warning("Token generated. Retying request...")
                     return self.get_traffic_counts_by_bounding_box(min_lat, max_lat, min_lon, max_lon,
                                                                    street_filter,
                                                                    num_tries - 1)
                 else:
-                    print(f"Exceeded number of retry attempts. Final response: {res_json}")
+                    log.error(f"Exceeded number of retry attempts. Final response: {res_json}")
         return res_json
 
 
 if __name__ == '__main__':
-    pass
-    # client = EsriClient()
-    # print(client.generate_new_token())
+    # pass
+    client = EsriClient()
+    print(client.get_token())
